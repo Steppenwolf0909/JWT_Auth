@@ -14,16 +14,19 @@ import base64
 
 class LoginAPIView(generics.GenericAPIView):
     def get(self, request, *args, **kwargs):
-        user = User.objects.get(id=request.GET['id'])
-        access_token, refresh_token = generate_tokens(user)
-        salt = bcrypt.gensalt()
-        hashed = bcrypt.hashpw(refresh_token, salt)
-        user.refresh_token = hashed.decode('utf-8')
-        user.save()
-        return HttpResponse(json.dumps({
-            'access token': access_token.decode('utf-8'),
-            'refresh token': refresh_token.decode('utf-8')
-        }))
+        try:
+            user = User.objects.get(id=request.GET['id'])
+            access_token, refresh_token = generate_tokens(user)
+            salt = bcrypt.gensalt()
+            hashed = bcrypt.hashpw(refresh_token, salt)
+            user.refresh_token = hashed.decode('utf-8')
+            user.save()
+            return HttpResponse(json.dumps({
+                'access token': access_token.decode('utf-8'),
+                'refresh token': refresh_token.decode('utf-8')
+            }))
+        except:
+            return HttpResponse('User not found!')
 
 
 class RefreshAPIView(generics.GenericAPIView):
@@ -52,13 +55,16 @@ class RefreshAPIView(generics.GenericAPIView):
 
 
 def generate_tokens(user):
-    dt = datetime.now() + timedelta(days=1)
-    dtR = datetime.now() + timedelta(days=1)
-    access_token = jwt.encode({
-        'email': user.email,
-        'username': user.username,
-        'exp': int(dt.strftime('%s'))
-    }, settings.SECRET_KEY, algorithm='HS512')
+    try:
+        dt = datetime.now() + timedelta(days=1)
+        dtR = datetime.now() + timedelta(days=1)
+        access_token = jwt.encode({
+            'email': user.email,
+            'username': user.username,
+            'exp': int(dt.strftime('%s'))
+        }, settings.SECRET_KEY, algorithm='HS512')
 
-    refresh_token = base64.b64encode(bytes(user.email + dtR.strftime('%s'), encoding='utf-8'))
-    return access_token, refresh_token
+        refresh_token = base64.b64encode(bytes(user.email + ' ' + dtR.strftime('%s'), encoding='utf-8'))
+        return access_token, refresh_token
+    except:
+        return HttpResponse('Creating tokens problem!')
